@@ -1,5 +1,6 @@
-python -m pip install streamlit vsdx sentence-transformerspip install streamlit vsdx sentence-transformers torch pip install streamlit vsdx sentence-transformers torchpimport streamlit as st
-from vsdx import VisioFile
+import streamlit as st
+import PyPDF2
+# ... baqi saara code niche from vsdx import VisioFile
 from sentence_transformers import SentenceTransformer, util
 import os
 
