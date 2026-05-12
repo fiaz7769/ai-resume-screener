@@ -17,7 +17,7 @@ if 'show_signup' not in st.session_state:
 def local_css():
     st.markdown("""
     <style>
-    .stApp { background:linear-gradient(145deg, #1e1e2f 0%, #121212 100%); color: red; }
+    .stApp { background:linear-gradient(#110deg,1e3c72 0%, #2a5298 100%); color: red; }
     div.stButton > button { 
         background-color: #4e54c8; color: white; border-radius: 12px; 
         box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: 0.3s;
