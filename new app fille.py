@@ -1,66 +1,114 @@
 import streamlit as st
 import PyPDF2
-# ... baqi saara code niche from vsdx import VisioFile
-from sentence_transformers import SentenceTransformer, util
-import os
+import pandas as pd
+import re
+import webbrowser
+from urllib.parse import quote
 
-# AI Model load ho raha hai (Ye text ka matlab samajhta hai)
-@st.cache_resource
-def load_model():
-    return SentenceTransformer('all-MiniLM-L6-v2')
+# --- FUNCTIONS ---
+def extract_contact_info(text):
+    email = re.findall(r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+', text)
+    phone = re.findall(r'(\+?\d{10,15})', text)
+    return (email[0] if email else "Not Found"), (phone[0] if phone else "")
 
-model = load_model()
+def get_analysis(text, skills):
+    text_lower = text.lower()
+    return {skill: text_lower.count(skill.lower()) for skill in skills}
 
-st.title("🤖 AI-Based Visio Screening System")
-st.markdown("Upload your Visio diagram to screen it against requirements.")
-
-# Sidebar for requirements
-st.sidebar.header("Screening Criteria")
-requirements = st.sidebar.text_area("Enter key skills or components to look for:", 
-                                   "Database, Cloud, Security, Python")
-
-uploaded_file = st.file_uploader("Choose a Visio (.vsdx) file", type="vsdx")
-
-if uploaded_file and requirements:
-    # Temporary file save karna taake vsdx read kar sakay
-    with open("temp_file.vsdx", "wb") as f:
-        f.write(uploaded_file.getbuffer())
-
-    try:
-        # 1. Text Extraction
-        extracted_text = []
-        with VisioFile("temp_file.vsdx") as vis:
-            for page in vis.pages:
-                for shape in page.all_shapes:
-                    if shape.text:
-                        extracted_text.append(shape.text.strip())
-        
-        combined_text = " ".join(extracted_text)
-
-        # 2. AI Screening (Similarity Score)
-        emb1 = model.encode(combined_text, convert_to_tensor=True)
-        emb2 = model.encode(requirements, convert_to_tensor=True)
-        cosine_score = util.cos_sim(emb1, emb2)
-        score_pct = int(cosine_score.item() * 100)
-
-        # 3. Results Display
-        st.subheader("Results")
-        st.metric(label="Match Score", value=f"{score_pct}%")
-
-        if score_pct > 70:
-            st.success("✅ High Match: This diagram meets most requirements.")
-        elif score_pct > 40:
-            st.warning("⚠️ Partial Match: Some components are missing.")
+# --- LOGIN SYSTEM ---
+def login():
+    st.title("🔐 HR Admin Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if username == "admin" and password == "12345": # Aap ye badal sakte hain
+            st.session_state['logged_in'] = True
+            st.rerun()
         else:
-            st.error("❌ Low Match: Requirements not found in diagram.")
+            st.error("Ghalat Username ya Password!")
 
-        with st.expander("Show Extracted Data"):
-            st.write(combined_text)
-
-    except Exception as e:
-        st.error(f"Error: {e}")
+# --- MAIN APP ---
+def main_app():
+    st.set_page_config(page_title="AI Recruiter Pro", layout="wide")
     
-    finally:
-        if os.path.exists("temp_file.vsdx"):
-            os.remove("temp_file.vsdx")
+    # Logout Button
+    if st.sidebar.button("Log Out"):
+        st.session_state['logged_in'] = False
+        st.rerun()
+
+    st.title("🤖 Smart AI Resume Screener")
+
+    # --- SIDEBAR: CRITERIA SETTINGS ---
+    st.sidebar.header("🎯 Selection Criteria")
+    min_score = st.sidebar.slider("Pass Marks (%)", 0, 100, 50)
+    skills_input = st.sidebar.text_input("Required Skills (Comma separated)", "Python, SQL, React")
+    REQUIRED_SKILLS = [s.strip() for s in skills_input.split(",") if s.strip()]
+
+    # --- FILE UPLOADER ---
+    uploaded_files = st.file_uploader("Upload Resumes (PDF)", type="pdf", accept_multiple_files=True)
+
+    if uploaded_files:
+        all_data = []
+        for file in uploaded_files:
+            reader = PyPDF2.PdfReader(file)
+            text = "".join([page.extract_text() or "" for page in reader.pages])
             
+            email, phone = extract_contact_info(text)
+            skill_counts = get_analysis(text, REQUIRED_SKILLS)
+            found_skills = [s for s, count in skill_counts.items() if count > 0]
+            score = (len(found_skills) / len(REQUIRED_SKILLS)) * 100 if REQUIRED_SKILLS else 0
+            
+            # Criteria logic
+            status = "✅ Shortlisted" if score >= min_score else "❌ Rejected"
+            
+            all_data.append({
+                "Candidate": file.name,
+                "Score %": round(score, 1),
+                "Status": status,
+                "Email": email,
+                "Phone": phone,
+                "Skills Found": ", ".join(found_skills)
+            })
+
+        df = pd.DataFrame(all_data)
+        st.subheader("📊 Screening Results")
+        st.dataframe(df, use_container_width=True)
+
+        # --- OUTREACH PANEL ---
+        st.divider()
+        st.header("📲 Contact Selected Candidates")
+        
+        # Sirf Shortlisted logo ki list dikhayi degi
+        shortlisted_only = df[df["Status"] == "✅ Shortlisted"]
+        
+        if not shortlisted_only.empty:
+            selection = st.selectbox("Select Candidate to Notify", shortlisted_only["Candidate"].unique())
+            user_row = df[df["Candidate"] == selection].iloc[0]
+
+            col1, col2 = st.columns(2)
+            with col1:
+                target_email = st.text_input("Email", user_row["Email"])
+                target_phone = st.text_input("Phone (Country Code ke sath)", user_row["Phone"])
+            
+            with col2:
+                msg = st.text_area("Message", f"Hi {selection},\nCongratualtions! You are shortlisted for the interview. Let us know your availability.")
+                
+                c_btn1, c_btn2 = st.columns(2)
+                if c_btn1.button("📱 WhatsApp"):
+                    if target_phone:
+                        webbrowser.open(f"https://web.whatsapp.com/send?phone={target_phone}&text={quote(msg)}")
+                    else: st.error("Phone number nahi mila!")
+                
+                if c_btn2.button("📧 Email"):
+                    webbrowser.open(f"mailto:{target_email}?subject=Job Selection&body={quote(msg)}")
+        else:
+            st.warning("Koi bhi candidate criteria par poora nahi utra.")
+
+# --- APP FLOW CONTROL ---
+if 'logged_in' not in st.session_state:
+    st.session_state['logged_in'] = False
+
+if st.session_state['logged_in']:
+    main_app()
+else:
+    login()
