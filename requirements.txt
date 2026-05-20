@@ -1,7 +1,8 @@
-﻿streamlit
+streamlit
 PyPDF2
 pandas
 plotly
 matplotlib
 sentence-transformers
 torch
+docx2txt
