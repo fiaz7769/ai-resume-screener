@@ -1,159 +1,160 @@
 import streamlit as st
-import pypdf  # PyPDF2 ki jagah naya 'pypdf' use karein
+import PyPDF2
 import pandas as pd
+import re
 import plotly.express as px
-import io
+from urllib.parse import quote
 
-# --- FUNCTION: Extract Text From PDF ---
-def extract_text_from_pdf(file):
-    text = ""
-    try:
-        # File stream ko dubara shuru se read karne ke liye reset karna
-        file.seek(0) 
-        pdf_reader = pypdf.PdfReader(file)
-        for page in pdf_reader.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text
-    except Exception as e:
-        # Agar file kharab (corrupt) ho toh error alert return karein
-        return None
-    return text
+# --- 1. SESSION STATE (Login handle karne ke liye) ---
+if 'users_db' not in st.session_state:
+    st.session_state['users_db'] = {'admin': '12345'}
+if 'is_logged_in' not in st.session_state:
+    st.session_state['is_logged_in'] = False
+if 'show_signup' not in st.session_state:
+    st.session_state['show_signup'] = False
 
-# --- FUNCTION: AI Screening Logic ---
-def screen_resume(text, required_skills):
-    if not text:
-        return [], 0.0
-        
-    text = text.lower()
-    found_skills = []
-    
-    for skill in required_skills:
-        clean_skill = skill.strip().lower()
-        if clean_skill and clean_skill in text:
-            found_skills.append(clean_skill.capitalize())
-    
-    # Score calculation
-    score = (len(found_skills) / len(required_skills)) * 100 if required_skills else 0
-    return found_skills, round(score, 2)
-
-# --- UI CONFIGURATION ---
-st.set_page_config(page_title="AI Resume Screener PRO", layout="wide", page_icon="🚀")
-
-# Custom CSS for styling
-st.markdown("""
+# --- 2. THEME & COLORS (Pink Theme Styling) ---
+def local_css():
+    st.markdown("""
     <style>
-    .main { background-color: #f5f7f9; }
-    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .stApp { 
+        background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); 
+        color: #333333; 
+    }
+    div.stButton > button { 
+        background-color: #d63384; color: white; border-radius: 15px; 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: none; font-weight: bold;
+    }
+    div.stButton > button:hover { transform: scale(1.02); background-color: #b8266d; }
+    .stDataFrame { background: white; border-radius: 10px; padding: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- HEADER ---
-st.title("🤖 AI Resume Screening & Analytics System")
-st.markdown("Automate your recruitment process with AI-powered skill matching.")
-st.divider()
-
-# --- SIDEBAR: SETTINGS ---
-with st.sidebar:
-    st.header("⚙️ Configuration")
-    skills_input = st.text_area("Target Skills", "Python, SQL, Machine Learning, Data Analysis, Communication", help="Comma separated list of skills")
-    REQUIRED_SKILLS = [s.strip() for s in skills_input.split(",") if s.strip()]
+# --- 3. CV SCANNER (Email aur Phone nikalne ke liye) ---
+def extract_info(text):
+    # Email patterns ko scan karna
+    email_list = re.findall(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', text)
+    # Phone numbers scan karna
+    phone_list = re.findall(r'(\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})', text)
     
-    threshold = st.slider("Pass Marks (Threshold %)", 0, 100, 50)
+    email = email_list[0] if email_list else "Not Found"
+    phone = phone_list[0] if phone_list else ""
+    # WhatsApp ke liye sirf digits rakhna
+    clean_phone = re.sub(r'\D', '', phone) 
     
-    st.divider()
-    st.info("💡 **Pro Tip:** Ensure PDF files are text-searchable (not scanned images) for best results.")
+    return email, clean_phone
 
-# --- MAIN CONTENT: UPLOADER ---
-uploaded_files = st.file_uploader("Upload Candidates' Resumes (PDF)", type=["pdf"], accept_multiple_files=True)
+# --- 4. LOGIN & SIGNUP ---
+def auth_page():
+    local_css()
+    st.markdown("<h1 style='text-align: center; color: #d63384;'>🌸 AI Candidate Screener</h1>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.session_state['show_signup']:
+            st.subheader("📝 Create New Account")
+            u = st.text_input("New Username")
+            p = st.text_input("New Password", type="password")
+            if st.button("Sign Up ✨"):
+                st.session_state['users_db'][u] = p
+                st.success("Account Created! Please Login.")
+                st.session_state['show_signup'] = False
+                st.rerun()
+            if st.button("Back to Login"):
+                st.session_state['show_signup'] = False
+                st.rerun()
+        else:
+            st.subheader("🔑 Secure Login")
+            u = st.text_input("Username")
+            p = st.text_input("Password", type="password")
+            if st.button("Enter Dashboard 🚀"):
+                if u in st.session_state['users_db'] and st.session_state['users_db'][u] == p:
+                    st.session_state['is_logged_in'] = True
+                    st.rerun()
+                else: st.error("Ghalat details hain!")
+            if st.button("No account? Sign Up"):
+                st.session_state['show_signup'] = True
+                st.rerun()
 
-if uploaded_files:
-    results_list = []
-    corrupt_files = []
+# --- 5. MAIN HR DASHBOARD ---
+def dashboard():
+    local_css()
+    st.sidebar.title("HR Admin Panel ⚙️")
+    if st.sidebar.button("Logout 🚪"):
+        st.session_state['is_logged_in'] = False
+        st.rerun()
+
+    # User yahan se criteria set karega
+    pass_score = st.sidebar.slider("Min Selection Score (%)", 0, 100, 50)
+    skills_in = st.sidebar.text_area("Keywords (Skills)", "Python, SQL, React")
+    REQUIRED = [s.strip().lower() for s in skills_in.split(",") if s.strip()]
+
+    st.markdown("<h1 style='color: #d63384;'>🎀 Recruitment Portal</h1>", unsafe_allow_html=True)
     
-    with st.status("Analyzing Resumes...", expanded=True) as status:
-        for uploaded_file in uploaded_files:
-            # 1. Extraction
-            raw_text = extract_text_from_pdf(uploaded_file)
-            
-            # Agar file reading fail ho jaye (EOF marker error ya corruption)
-            if raw_text is None:
-                corrupt_files.append(uploaded_file.name)
-                continue
+    files = st.file_uploader("Upload Resumes (PDFs)", type="pdf", accept_multiple_files=True)
+
+    if files:
+        results = []
+        for f in files:
+            # TRY-EXCEPT BLOCK: Corrupt PDF se app ko crash hone se bacha raha hai
+            try:
+                pdf = PyPDF2.PdfReader(f)
+                text = "".join([p.extract_text() or "" for p in pdf.pages])
+                email, phone = extract_info(text)
                 
-            # 2. Screening
-            matched, score = screen_resume(raw_text, REQUIRED_SKILLS)
-            
-            # 3. Status logic
-            status_label = "Shortlisted" if score >= threshold else "Rejected"
-            
-            results_list.append({
-                "Candidate Name": uploaded_file.name,
-                "Match Score %": score,
-                "Skills Found": ", ".join(matched) if matched else "None",
-                "Status": status_label
-            })
-        status.update(label="Analysis Complete!", state="complete", expanded=False)
+                # Score check karne ki logic
+                found = [s for s in REQUIRED if s in text.lower()]
+                score = (len(found) / len(REQUIRED)) * 100 if REQUIRED else 0
+                
+                results.append({
+                    "Name": f.name, "Score": round(score, 1),
+                    "Status": "✅ Selected" if score >= pass_score else "❌ Rejected",
+                    "Email": email, "Phone": phone, "Skills Found": ", ".join(found)
+                })
+            except Exception as e:
+                # Agar kisi ek file mein "EOF marker not found" jaisa error aaye toh app crash nahi hogi
+                st.warning(f"⚠️ {f.name} ko read nahi kiya ja saka. (Corrupt or Invalid PDF)")
 
-    # Agar koi kharab file upload hui ho toh warning dikhayein bina app crash kiye
-    if corrupt_files:
-        st.error(f"⚠️ Darj zail files kharab (corrupt) hain ya unka format theek nahi hai: {', '.join(corrupt_files)}")
-
-    # Check karein agar kam se kam ek file sahi tarah process hui ho
-    if results_list:
-        # Convert to DataFrame
-        df = pd.DataFrame(results_list)
-
-        # --- DASHBOARD LAYOUT ---
-        tab1, tab2 = st.tabs(["📊 Analytics Overview", "📄 Detailed Report"])
-
-        with tab1:
-            # Metrics Row
-            m_col1, m_col2, m_col3 = st.columns(3)
-            total_apps = len(df)
-            shortlisted = len(df[df['Status'] == 'Shortlisted'])
-            
-            m_col1.metric("Total Resumes", total_apps)
-            m_col2.metric("Shortlisted", shortlisted, delta=f"{shortlisted/total_apps*100:.1f}%" if total_apps > 0 else "0%")
-            m_col3.metric("Avg Match Score", f"{df['Match Score %'].mean():.1f}%")
-
-            st.divider()
-
-            # Visualizations
-            v_col1, v_col2 = st.columns([2, 1])
-            
-            with v_col1:
-                st.subheader("Leaderboard")
-                fig_bar = px.bar(df.sort_values("Match Score %", ascending=True), 
-                                 x="Match Score %", y="Candidate Name", 
-                                 color="Status", orientation='h',
-                                 color_discrete_map={'Shortlisted': '#2ecc71', 'Rejected': '#e74c3c'},
-                                 text="Match Score %")
-                st.plotly_chart(fig_bar, use_container_width=True)
-
-            with v_col2:
-                st.subheader("Selection Ratio")
-                fig_pie = px.pie(df, names='Status', color='Status',
-                                 color_discrete_map={'Shortlisted': '#2ecc71', 'Rejected': '#e74c3c'},
-                                 hole=0.4)
-                st.plotly_chart(fig_pie, use_container_width=True)
-
-        with tab2:
-            st.subheader("Final Screening Table")
+        # Agar kam se kam ek file sahi se process hui ho toh dashboard dikhao
+        if results:
+            df = pd.DataFrame(results)
+            # Visual Graph
+            st.plotly_chart(px.bar(df, x="Name", y="Score", color="Status", 
+                                   color_discrete_map={"✅ Selected": "#d63384", "❌ Rejected": "#ff9a9e"}))
             st.dataframe(df, use_container_width=True)
-            
-            # CSV Download Button
-            csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="📥 Download Full Report (CSV)",
-                data=csv,
-                file_name='screening_results.csv',
-                mime='text/csv',
-            )
-    else:
-        st.warning("Koi bhi sahi PDF file process nahi ho saki. Baraye meharbani files check kar ke dubara upload karein.")
 
+            # --- OUTREACH SECTION (Anti-Spam Messages) ---
+            st.divider()
+            st.subheader("✉️ Fast-Track Contact")
+            sel_name = st.selectbox("Choose Candidate", df["Name"].unique())
+            user_row = df[df["Name"] == sel_name].iloc[0]
+
+            col_a, col_b = st.columns(2)
+            with col_a:
+                target_mail = st.text_input("Candidate Email", user_row["Email"])
+                target_wa = st.text_input("WhatsApp (Numbers Only)", user_row["Phone"])
+            
+            with col_b:
+                # Har email ka subject alag hoga taaki spam filters na pakrein
+                email_subject = f"Application Update for {sel_name}"
+                
+                # Personalized Message Logic
+                if "✅" in user_row["Status"]:
+                    msg_body = f"Dear {sel_name},\n\nI hope you are well. We have reviewed your application and we are pleased to shortlist you for the next round. Our team will contact you soon for an interview schedule.\n\nRegards,\nHR Team"
+                else:
+                    msg_body = f"Dear {sel_name},\n\nThank you for applying. After reviewing your profile, we regret to inform you that we are moving forward with other candidates. We wish you the best for your future.\n\nRegards,\nHR Team"
+
+                final_msg = st.text_area("Custom Message", msg_body, height=150)
+                
+                b1, b2 = st.columns(2)
+                with b1:
+                    st.link_button("📱 WhatsApp", f"https://wa.me/{target_wa}?text={quote(final_msg)}")
+                with b2:
+                    st.link_button("📧 Send Email", f"mailto:{target_mail}?subject={quote(email_subject)}&body={quote(final_msg)}")
+        else:
+            st.error("Upload ki gayi files mein se koi bhi sahi PDF nahi thi.")
+
+# --- APP START ---
+if st.session_state['is_logged_in']:
+    dashboard()
 else:
-    # Placeholder when no files are uploaded
-    st.warning("Awaiting file uploads... Please upload PDF resumes from the uploader above.")
-    st.image("https://cdn-icons-png.flaticon.com/512/3342/3342137.png", width=100)
+    auth_page()
