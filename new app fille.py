@@ -1,6 +1,7 @@
 import streamlit as st
 import PyPDF2
-from PyPDF2.errors import PdfReadError  # Is line se error pakra jayega
+from PyPDF2.errors import PdfReadError
+import docx2txt  # Word files (.docx) read karne ke liye library
 import pandas as pd
 import re
 import plotly.express as px
@@ -87,31 +88,41 @@ def dashboard():
 
     st.markdown("<h1 style='color: #d63384;'>🎀 Recruitment Portal</h1>", unsafe_allow_html=True)
     
-    files = st.file_uploader("Upload Resumes (PDFs)", type="pdf", accept_multiple_files=True)
+    # Ab file uploader PDF aur Word (.docx) dono accept karega
+    files = st.file_uploader("Upload Resumes (PDF or Word)", type=["pdf", "docx"], accept_multiple_files=True)
 
     if files:
         results = []
         for f in files:
-            # DOUBLE LAYER PROTECTION: Corrupt/Empty PDFs ab crash nahi kar saktin
+            text = ""
             try:
-                pdf = PyPDF2.PdfReader(f)
-                text = "".join([p.extract_text() or "" for p in pdf.pages])
-                email, phone = extract_info(text)
+                # Check karein ke file PDF hai ya Word
+                if f.name.endswith('.pdf'):
+                    pdf = PyPDF2.PdfReader(f)
+                    text = "".join([p.extract_text() or "" for p in pdf.pages])
                 
-                found = [s for s in REQUIRED if s in text.lower()]
-                score = (len(found) / len(REQUIRED)) * 100 if REQUIRED else 0
+                elif f.name.endswith('.docx'):
+                    # Word file se text nikalne ka tariqa
+                    text = docx2txt.process(f)
                 
-                results.append({
-                    "Name": f.name, "Score": round(score, 1),
-                    "Status": "✅ Selected" if score >= pass_score else "❌ Rejected",
-                    "Email": email, "Phone": phone, "Skills Found": ", ".join(found)
-                })
-            except (PdfReadError, Exception) as e:
-                # Agar line 98 par dobara wahi error aaya, toh yeh usay screen par yellow warning dikha kar skip kar dega
-                st.warning(f"⚠️ {f.name} sahi format mein nahi hai ya corrupt hai. Isay skip kar diya gaya.")
+                # Agar dono formats me se text nikal aaye toh baaki process karein
+                if text:
+                    email, phone = extract_info(text)
+                    found = [s for s in REQUIRED if s in text.lower()]
+                    score = (len(found) / len(REQUIRED)) * 100 if REQUIRED else 0
+                    
+                    results.append({
+                        "Name": f.name, "Score": round(score, 1),
+                        "Status": "✅ Selected" if score >= pass_score else "❌ Rejected",
+                        "Email": email, "Phone": phone, "Skills Found": ", ".join(found)
+                    })
+                else:
+                    st.warning(f"⚠️ {f.name} khali hai ya text nahi parha ja saka.")
+                    
+            except Exception as e:
+                st.warning(f"⚠️ {f.name} ko read nahi kiya ja saka (Corrupt File).")
                 continue
 
-        # Layout tabhi dikhao agar kam se kam 1 file sahi process hui ho
         if results:
             df = pd.DataFrame(results)
             st.plotly_chart(px.bar(df, x="Name", y="Score", color="Status", 
@@ -145,7 +156,7 @@ def dashboard():
                 with b2:
                     st.link_button("📧 Send Email", f"mailto:{target_mail}?subject={quote(email_subject)}&body={quote(final_msg)}")
         else:
-            st.error("❌ Upload ki gayi koi bhi PDF file sahi nahi thi. Please naye files try karein.")
+            st.error("❌ Upload ki gayi files me se koi bhi parhi nahi ja saki.")
 
 # --- APP START ---
 if st.session_state['is_logged_in']:
