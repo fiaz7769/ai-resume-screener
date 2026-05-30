@@ -45,7 +45,7 @@ def local_css():
     
     /* 3D Shiny Buttons */
     div.stButton > button { 
-        background: linear-gradient(135deg, #ff4bb4 0%, #1E293B 100%); 
+        background: linear-gradient(135deg, #ff4bb4 0%, #FACC15 100%); 
         color: white !important; 
         border-radius: 25px !important; 
         border: 1px solid rgba(255,255,255,0.4) !important;
