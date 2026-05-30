@@ -21,7 +21,7 @@ def local_css():
     <style>
     /* Full App Background */
     .stApp { 
-        background: radial-gradient(circle at 50% 50%, #fecfef 0%, #22C55E 100%);
+        background: radial-gradient(circle at 50% 50%, #fecfef 0%, #2563EB 100%);
         color: #2563EB
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
