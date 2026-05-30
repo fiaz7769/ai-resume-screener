@@ -147,7 +147,7 @@ def dashboard():
     # Main Top Banner (Same as Image Logo Look)
     st.markdown("""
         <div style='background: linear-gradient(135deg, #4b1248 0%, #f0c27b 100%); border-radius: 20px; padding: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); border: 2px solid #fff; margin-bottom: 25px;'>
-            <h1 style='color: white; margin: 0; font-size: 2.5rem; text-shadow: 3px 3px 6px rgba(0,0,0,0.4); float: left;'>👑 AI CANDIDATE SCREENER</h1>
+            <h1 style='color: white; margin: 0; font-size: 2.5rem; text-shadow: 3px 3px 6px rgba(0,0,0,0.4); float: light ;'>👑 AI CANDIDATE SCREENER</h1>
             <h3 style='color: #fff; margin: 5px 0 0 0; text-align: right; font-weight: 300;'>HR ADMIN PANEL</h3>
             <div style='clear: both;'></div>
         </div>
