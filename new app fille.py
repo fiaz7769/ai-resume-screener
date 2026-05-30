@@ -57,7 +57,7 @@ def local_css():
     div.stButton > button:hover { 
         transform: translateY(-3px); 
         box-shadow: 0 10px 20px rgba(214, 51, 132, 0.6);
-        background: linear-gradient(135deg, #d63384 0%, #16A34A 100%);
+        background: linear-gradient(135deg, #d63384 0%, #F0FDF4 100%);
     }
     
     /* Dataframe/Table styling */
