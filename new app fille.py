@@ -103,7 +103,7 @@ def auth_page():
     """, unsafe_allow_html=True)
     
     st.write("") # Gap dene ke liye
-    col1, col2, col3 = st.columns([2, 1, 2])
+    col1, col2, col3 = st.columns([2, 2, 2])
     with col2:
         if st.session_state['show_signup']:
             st.markdown("<h3 style='color: #d63384;'>📝 Create VIP Account</h3>", unsafe_allow_html=True)
