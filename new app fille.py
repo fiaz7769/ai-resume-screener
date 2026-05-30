@@ -9,7 +9,7 @@ from urllib.parse import quote
 
 # --- 1. SESSION STATE (Login handle karne ke liye) ---
 if 'users_db' not in st.session_state:
-    st.session_state['users_db'] = {'admin': '45628'}
+    st.session_state['users_db'] = {'admin': '12345'}
 if 'is_logged_in' not in st.session_state:
     st.session_state['is_logged_in'] = False
 if 'show_signup' not in st.session_state:
@@ -135,7 +135,7 @@ def dashboard():
     local_css()
     
     # Sidebar setup
-    st.sidebar.markdown("<h2 style='color: #d63384; text-align:center;'>⚙️ SETTINGS</h2>", unsafe_allow_html=True)
+    st.sidebar.markdown("<h2 style='color: #d63384; text-align:lift ;'>⚙️ SETTINGS</h2>", unsafe_allow_html=True)
     if st.sidebar.button("Logout Portal 🚪"):
         st.session_state['is_logged_in'] = False
         st.rerun()
