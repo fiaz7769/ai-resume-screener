@@ -9,7 +9,7 @@ from urllib.parse import quote
 
 # --- 1. SESSION STATE (Login handle karne ke liye) ---
 if 'users_db' not in st.session_state:
-    st.session_state['users_db'] = {'admin': '12345'}
+    st.session_state['users_db'] = {'admin': '45628'}
 if 'is_logged_in' not in st.session_state:
     st.session_state['is_logged_in'] = False
 if 'show_signup' not in st.session_state:
