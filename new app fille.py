@@ -97,7 +97,7 @@ def auth_page():
     local_css()
     st.markdown("""
         <div style='background: rgba(255,255,255,0.3); padding: 30px; border-radius: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.15); border: 2px solid rgba(255,255,255,0.5);'>
-            <h1 style='text-align: center; color: #d63384; font-size: 3rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);'<👑 AI Candidate Screener</h1>
+            <h1 style='text-align: center; color: #d63384; font-size: 3rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);'>👑 AI Candidate Screener</h1>
             <p style='text-align: center; font-weight: bold; color: #555;'>VIP Recruitment Edition</p>
         </div>
     """, unsafe_allow_html=True)
